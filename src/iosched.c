@@ -8,7 +8,11 @@
 
 #define time_mean(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; times[i] = msec; 
 #define time(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; printf("time msec: %f\n", msec); 
+#define time_mean_create(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; create_mean[i] = msec; 
+#define time_mean_remove(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; remove_mean[i] = msec; 
+
 #define FILES_PER_THREAD 10
+#define NUM_TESTS 45
 
 void *create_file(void *filename);
 void *remove_file(void *filename);
@@ -31,36 +35,38 @@ int main(int argc, char *argv[]) {
 	int num_threads = strtol(argv[1], NULL, 10);
 
 
+
+	// GET CREATE/REMOVE AVERAGE OVER 10 TEST RUNS
+	float create_mean[NUM_TESTS];
+	float remove_mean[NUM_TESTS];
+	for (int i = 0; i<NUM_TESTS; i++) {
+		time_mean_create(threadfile_creator(num_threads));
+		time_mean_remove(threadfile_deleter(num_threads));
+	}
+
+	float mean_create = 0;
+	for (int i = 0; i<NUM_TESTS; i++) {
+		mean_create += create_mean[i];
+	}
+	printf("mean create time %f\n", mean_create/NUM_TESTS);
+
+	float mean_remove = 0;
+	for (int i = 0; i<NUM_TESTS; i++) {
+		mean_remove += remove_mean[i];
+	}
+
+	printf("mean remove time %f\n", mean_remove/NUM_TESTS);
+
+
+
+
+
+
+// SINGLE RUN
 /*
-	// GET CREATE AVERAGE
-	float times[10];
-	for (int i = 0; i<10; i++) {
-		time_mean(threadfile_creator(num_threads));
-	}
-	float mean = 0;
-	for (int i = 0; i<10; i++) {
-		mean += times[i];
-	}
-	printf("mean create time %f\n", mean/10);
-
-
-
-	// GET DELETE AVERAGE
-	memset(times, 0, 10*sizeof(*times));
-	for (int i = 0; i<10; i++) {
-		time_mean(threadfile_deleter(num_threads));
-	}
-	mean = 0;
-	for (int i = 0; i<10; i++) {
-		mean += times[i];
-	}
-	printf("mean delete time %f\n", mean/10);
-*/
-
-
 	time(threadfile_creator(num_threads));
 	time(threadfile_deleter(num_threads));
-
+*/
 
 }
 
