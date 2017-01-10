@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 	printf("Master launched threads\n");
 	printf("Master starting massive superwrite\n");
 	// begin massive annoying write and time it
-	time(system("dd if=/dev/zero of=test bs=64k count=16k conv=fdatasync"));
+	time(system("dd if=/dev/zero of=test bs=64k count=8k conv=fdatasync"));
 	//time(system("dd if=/dev/sda of=/dev/null"));
 
 	running = false;
@@ -106,8 +106,9 @@ void sig_handler(int signo) {
 void *thread_master(void *num_threads) {
 	while(running) {
 		if (thread_count == 0) {
-			threadfile_creator(*(int*)num_threads);
-			threadfile_deleter(*(int*)num_threads);
+			sleep(1);
+			time(threadfile_creator(*(int*)num_threads));
+			time(threadfile_deleter(*(int*)num_threads));
 
 		} 
 	}
