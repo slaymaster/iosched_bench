@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdbool.h>
+#include <signal.h>
 
 #define time_mean(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; times[i] = msec; 
 #define time(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; printf("time msec: %f\n", msec); 
@@ -18,13 +20,17 @@ void *create_file(void *filename);
 void *remove_file(void *filename);
 void *threadfile_creator(int num_threads);
 void *threadfile_deleter(int num_threads);
+void *thread_master(void *num_threads);
+void sig_handler(int signo);
 
 clock_t start, diff;
 float msec;
 volatile int thread_count = 0;
+bool running = true;
 
 int main(int argc, char *argv[]) {
 
+	signal(SIGINT, sig_handler); 
 
 
 	if (argc != 2) {
@@ -36,6 +42,8 @@ int main(int argc, char *argv[]) {
 
 
 
+
+/*
 	// GET CREATE/REMOVE AVERAGE OVER 10 TEST RUNS
 	float create_mean[NUM_TESTS];
 	float remove_mean[NUM_TESTS];
@@ -56,6 +64,24 @@ int main(int argc, char *argv[]) {
 	}
 
 	printf("mean remove time %f\n", mean_remove/NUM_TESTS);
+*/
+
+
+	pthread_t threadmaster;
+	pthread_create(&threadmaster, NULL, &thread_master, &num_threads);
+
+	printf("Master launched threads\n");
+
+
+	printf("Master starting massive superwrite\n");
+	// begin massive annoying write and time it
+	time(system("dd if=/dev/zero of=test bs=64k count=16k conv=fdatasync"));
+	//time(system("dd if=/dev/sda of=/dev/null"));
+
+
+
+	printf("Master waiting for threadmaster\n");
+	pthread_join(threadmaster, NULL);
 
 
 
@@ -67,6 +93,29 @@ int main(int argc, char *argv[]) {
 	time(threadfile_creator(num_threads));
 	time(threadfile_deleter(num_threads));
 */
+	return 0;
+
+}
+
+void sig_handler(int signo) {
+
+	if (signo == SIGINT) {
+		printf("CAUGHT SIGINT--EXITING\n");
+		running = false;
+	}
+
+}
+
+void *thread_master(void *num_threads) {
+	while(running) {
+		if (thread_count == 0) {
+			threadfile_creator(*(int*)num_threads);
+			threadfile_deleter(*(int*)num_threads);
+
+		} 
+	}
+
+	return 0;
 
 }
 
