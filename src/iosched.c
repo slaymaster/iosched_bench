@@ -14,7 +14,7 @@
 #define time_mean_remove(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; remove_mean[i] = msec; 
 
 #define FILES_PER_THREAD 10
-#define NUM_TESTS 45
+#define NUM_TESTS 40
 
 void *create_file(void *filename);
 void *remove_file(void *filename);
@@ -26,7 +26,7 @@ void sig_handler(int signo);
 clock_t start, diff;
 float msec;
 volatile int thread_count = 0;
-bool running = true;
+volatile bool running = true;
 
 int main(int argc, char *argv[]) {
 
@@ -71,17 +71,14 @@ int main(int argc, char *argv[]) {
 	pthread_create(&threadmaster, NULL, &thread_master, &num_threads);
 
 	printf("Master launched threads\n");
-
-
 	printf("Master starting massive superwrite\n");
 	// begin massive annoying write and time it
 	time(system("dd if=/dev/zero of=test bs=64k count=16k conv=fdatasync"));
 	//time(system("dd if=/dev/sda of=/dev/null"));
 
-
-
+	running = false;
 	printf("Master waiting for threadmaster\n");
-	pthread_join(threadmaster, NULL);
+	//pthread_join(threadmaster, NULL);
 
 
 
