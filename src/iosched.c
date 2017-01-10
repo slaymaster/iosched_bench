@@ -9,7 +9,7 @@
 #include <signal.h>
 
 #define time_mean(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; times[i] = msec; 
-#define time(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; printf("time msec: %f\n", msec); 
+#define time(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; printf("%f\n", msec); 
 #define time_mean_create(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; create_mean[i] = msec; 
 #define time_mean_remove(a) start=clock(); a; diff = clock() - start; msec = (float)diff * 1000 / CLOCKS_PER_SEC; remove_mean[i] = msec; 
 
@@ -70,15 +70,15 @@ int main(int argc, char *argv[]) {
 	pthread_t threadmaster;
 	pthread_create(&threadmaster, NULL, &thread_master, &num_threads);
 
-	printf("Master launched threads\n");
-	printf("Master starting massive superwrite\n");
+	fprintf(stderr, "Master launched threads\n");
+	fprintf(stderr, "Master starting massive superwrite\n");
 	// begin massive annoying write and time it
 	time(system("dd if=/dev/zero of=test bs=64k count=8k conv=fdatasync"));
 	//time(system("dd if=/dev/sda of=/dev/null"));
 
 	running = false;
-	printf("Master waiting for threadmaster\n");
-	//pthread_join(threadmaster, NULL);
+	fprintf(stderr, "Master waiting for threadmaster\n");
+	pthread_join(threadmaster, NULL);
 
 
 
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 void sig_handler(int signo) {
 
 	if (signo == SIGINT) {
-		printf("CAUGHT SIGINT--EXITING\n");
+		fprintf(stderr, "CAUGHT SIGINT--EXITING\n");
 		running = false;
 	}
 
