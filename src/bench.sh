@@ -6,6 +6,8 @@ for i in "${scheds[@]}"
     do
         echo $i | sudo tee /sys/block/sda/queue/scheduler
         ./iosched 10 > test$i
+        rm -rf testefb*
+        echo 3 | sudo tee /proc/sys/vm/drop_caches
     done
 
 echo "NOOP AVERAGE:"

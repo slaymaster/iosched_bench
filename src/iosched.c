@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
@@ -16,6 +17,9 @@
 #define FILES_PER_THREAD 10
 #define NUM_TESTS 40
 
+#define realtime(a) gettimeofday(&s,NULL); a; gettimeofday(&e,NULL); sec=(e.tv_sec-s.tv_sec); microsec=((sec*1000000) + e.tv_usec)-(s.tv_usec); printf("%ld\n", microsec);
+
+
 void *create_file(void *filename);
 void *remove_file(void *filename);
 void *threadfile_creator(int num_threads);
@@ -25,8 +29,11 @@ void sig_handler(int signo);
 
 clock_t start, diff;
 float msec;
+
+struct timeval s, e;
+long microsec, sec;
 volatile int thread_count = 0;
-volatile bool running = true;
+volatile int running = 1;
 
 int main(int argc, char *argv[]) {
 
@@ -40,9 +47,15 @@ int main(int argc, char *argv[]) {
 
 	int num_threads = strtol(argv[1], NULL, 10);
 
+/*
+	gettimeofday(&s, NULL);
+	sleep(1);
+	gettimeofday(&e, NULL);
 
 
-
+	secs_used = (e.tv_sec - s.tv_sec);
+	micros_used = ((secs_used*1000000) + e.tv_usec) - (s.tv_usec);
+*/
 /*
 	// GET CREATE/REMOVE AVERAGE OVER 10 TEST RUNS
 	float create_mean[NUM_TESTS];
@@ -73,10 +86,14 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "Master launched threads\n");
 	fprintf(stderr, "Master starting massive superwrite\n");
 	// begin massive annoying write and time it
-	time(system("dd if=/dev/zero of=test bs=64k count=8k conv=fdatasync"));
+	time(system("dd if=/dev/zero of=test bs=64k count=32k conv=fdatasync"));
 	//time(system("dd if=/dev/sda of=/dev/null"));
 
-	running = false;
+	if (running == 1) {
+		__sync_fetch_and_sub(&running, 1);
+	} else {
+		fprintf(stderr, "error: running was not %d, something very wrong\n", running);
+	}
 	fprintf(stderr, "Master waiting for threadmaster\n");
 	pthread_join(threadmaster, NULL);
 
@@ -98,7 +115,9 @@ void sig_handler(int signo) {
 
 	if (signo == SIGINT) {
 		fprintf(stderr, "CAUGHT SIGINT--EXITING\n");
-		running = false;
+		if (running == 1) {
+			__sync_fetch_and_sub(&running, 1);
+		}
 	}
 
 }
@@ -106,9 +125,9 @@ void sig_handler(int signo) {
 void *thread_master(void *num_threads) {
 	while(running) {
 		if (thread_count == 0) {
-			sleep(1);
-			time(threadfile_creator(*(int*)num_threads));
-			time(threadfile_deleter(*(int*)num_threads));
+			//sleep(1);
+			realtime(threadfile_creator(*(int*)num_threads));
+			realtime(threadfile_deleter(*(int*)num_threads));
 
 		} 
 	}
@@ -119,12 +138,19 @@ void *thread_master(void *num_threads) {
 
 void *threadfile_creator(int num_threads) {
 	// create files
-	thread_count += num_threads;
+	//thread_count += num_threads;
 	for (int i = 0; i<num_threads; i++) {
 		char *filename = malloc(sizeof(char)*10);
 		sprintf(filename, "efbefc%d", i);
 		pthread_t thread;
-		pthread_create(&thread, NULL, &create_file, filename);
+		pthread_attr_t tattr;
+		pthread_attr_init(&tattr);
+		pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+		__sync_fetch_and_add(&thread_count, 1);
+		if (pthread_create(&thread, &tattr, &create_file, filename) != 0) {
+			perror("failed to create thread");
+			__sync_fetch_and_sub(&thread_count, 1);
+		}
 	}
 
 	//create_file("efbefc0");
@@ -139,12 +165,19 @@ void *threadfile_creator(int num_threads) {
 
 void *threadfile_deleter(int num_threads) {
 	// remove files
-	thread_count += num_threads;
+	//thread_count += num_threads;
 	for (int i = 0; i<num_threads; i++) {
 		char *filename = malloc(sizeof(char)*10);
 		sprintf(filename, "efbefc%d", i);
 		pthread_t thread;
-		pthread_create(&thread, NULL, &remove_file, filename);
+		pthread_attr_t tattr;
+		pthread_attr_init(&tattr);
+		pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+		__sync_fetch_and_add(&thread_count, 1);
+		if(pthread_create(&thread, &tattr, &remove_file, filename)) {
+			perror("failed to create thread");
+			__sync_fetch_and_sub(&thread_count, 1);
+		}
 	}
 
 	do {
@@ -159,11 +192,22 @@ void *threadfile_deleter(int num_threads) {
 // may only be called from thread
 void *create_file(void *filename) {
 	for (int i = 0; i<FILES_PER_THREAD; i++) {
-		char *fn = malloc(sizeof(char)*strlen(filename)+1);
+		char *fn = malloc(sizeof(char)*strlen(filename)+10);
 		sprintf(fn, "%s%d", (char*)filename, i);
-		open(fn, O_CREAT | O_EXCL);
+		int fd;
+		if((fd = open(fn, O_CREAT | O_EXCL) <0)) {
+			perror("create file");
+		} else {
+			close(fd);
+		}
+		free(fn);
 		//printf("creating file %s\n", fn);
 	}
+  	//char l[100];
+  	//sprintf(l, "dd if=/dev/zero of=test%s bs=64k count=2k conv=fdatasync", (char*)filename);
+  	//system(l);
+
+  	free(filename);
   	__sync_fetch_and_sub(&thread_count,1);
 	return NULL;
 }
@@ -171,12 +215,20 @@ void *create_file(void *filename) {
 // may only be called from thread
 void *remove_file(void *filename) {
 	for (int i = 0; i<FILES_PER_THREAD; i++) {
-		char *fn = malloc(sizeof(char)*strlen(filename)+1);
+		char *fn = malloc(sizeof(char)*strlen(filename)+10);
 		sprintf(fn, "%s%d", (char*)filename, i);
-		remove(fn);
+		if (remove(fn) < 0) {
+			perror("remove file");
+		}
+		free(fn);
 		//printf("removing file %s\n", fn);
 	}
+  	//char l[100];
+  	//sprintf(l, "dd if=/dev/zero of=test%s bs=64k count=2k conv=fdatasync", (char*)filename);
+  	//system(l);
 
+
+  	free(filename);
   	__sync_fetch_and_sub(&thread_count,1);
 	return NULL;
 
