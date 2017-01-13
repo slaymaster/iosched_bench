@@ -11,6 +11,7 @@ for i in "${scheds[@]}"
         echo 3 | sudo tee /proc/sys/vm/drop_caches
     done
 
+#dont forget to add new schedulers here as well
 echo "NOOP AVERAGE:"
 cat testnoop | datamash mean 1
 echo "CFQ AVERAGE:"
