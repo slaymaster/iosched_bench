@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#add scheduler to scheds to add it to the benchmark
 declare -a scheds=("noop" "cfq" "deadline")
 
 for i in "${scheds[@]}"
