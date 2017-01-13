@@ -11,10 +11,11 @@ for i in "${scheds[@]}"
         echo 3 | sudo tee /proc/sys/vm/drop_caches
     done
 
-#dont forget to add new schedulers here as well
-echo "NOOP AVERAGE:"
-cat testnoop | datamash mean 1
-echo "CFQ AVERAGE:"
-cat testcfq | datamash mean 1
-echo "DEADLINE AVERAGE:"
-cat testdeadline | datamash mean 1
+
+for i in "${scheds[@]}"
+    do
+        echo "$i AVERAGE:"
+        cat test$i | datamash mean 1
+
+    done
+
