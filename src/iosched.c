@@ -14,7 +14,6 @@
 
 #define time(a) gettimeofday(&s,NULL); a; gettimeofday(&e,NULL); sec=(e.tv_sec-s.tv_sec); microsec=((sec*1000000) + e.tv_usec)-(s.tv_usec); printf("%ld\n", microsec);
 
-
 void *create_file(void *filename);
 void *remove_file(void *filename);
 void *threadfile_creator(int num_threads);
@@ -42,7 +41,7 @@ int main(int argc, char *argv[]) {
 
 	int num_threads = strtol(argv[1], NULL, 10);
 
-
+	// spawns threadmaster
 	pthread_t threadmaster;
 	pthread_create(&threadmaster, NULL, &thread_master, &num_threads);
 
@@ -51,6 +50,7 @@ int main(int argc, char *argv[]) {
 	// begin massive annoying write and time it
 	time(system("dd if=/dev/zero of=test bs=64k count=32k conv=fdatasync"));
 
+	// done, wait for all threads and exit
 	if (running == 1) {
 		__sync_fetch_and_sub(&running, 1);
 	} else {
